@@ -15,6 +15,8 @@ import HexagonShader from "./shaders/HexagonShader";
 import KaleidoscopeShader from "./shaders/KaleidoscopeShader";
 import LEDShader from "./shaders/LEDShader";
 import MirrorShader from "./shaders/MirrorShader";
+import NoiseShader from "./shaders/NoiseShader";
+import PerlinNoiseShader from "./shaders/PerlinNoiseShader";
 import PixelateShader from "./shaders/PixelateShader";
 import RGBShiftShader from "./shaders/RGBShiftShader";
 import ZoomBlurShader from "./shaders/ZoomBlurShader";
@@ -211,6 +213,29 @@ export function createScenePass(effectConfig, width, height) {
 					spacing: Number(props.spacing || 10),
 					size: Number(props.size || 4),
 					blur: Number(props.blur || 4),
+				});
+			});
+		}
+		case "NoiseEffect": {
+			const pass = new ShaderPass(NoiseShader);
+			pass.enabled = effectConfig.enabled !== false;
+			return attachUpdater(pass, () => {
+				pass.setSize(width, height);
+				pass.setUniforms({
+					time: Number(effectConfig.time || props.time || 0),
+					premultiply: props.premultiply ? 1 : 0,
+				});
+			});
+		}
+		case "PerlinNoiseEffect": {
+			const pass = new ShaderPass(PerlinNoiseShader);
+			pass.enabled = effectConfig.enabled !== false;
+			return attachUpdater(pass, () => {
+				pass.setSize(width, height);
+				pass.setUniforms({
+					time: Number(effectConfig.time || props.time || 0),
+					amount: Number(props.amount ?? 0.35),
+					scale: Number(props.scale ?? 3),
 				});
 			});
 		}

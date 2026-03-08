@@ -14,6 +14,7 @@ export { default as KaleidoscopeEffect } from "./KaleidoscopeEffect";
 export { default as LEDEffect } from "./LEDEffect";
 export { default as MirrorEffect } from "./MirrorEffect";
 export { default as NoiseEffect } from "./NoiseEffect";
+export { default as PerlinNoiseEffect } from "./PerlinNoiseEffect";
 export { default as PixelateEffect } from "./PixelateEffect";
 export { default as RGBShiftEffect } from "./RGBShiftEffect";
 export { default as ScanlineEffect } from "./ScanlineEffect";

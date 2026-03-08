@@ -79,7 +79,7 @@ const EFFECT_CATEGORIES = [
 	},
 	{
 		label: "Stylize",
-		effects: ["Noise", "Vignette"],
+		effects: ["Noise", "Perlin Noise", "Vignette"],
 	},
 ];
 
