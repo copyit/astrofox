@@ -1,7 +1,3 @@
-// @ts-nocheck
-import Plugin from "@/lib/core/Plugin";
-import * as displays from "@/lib/displays";
-import * as effects from "@/lib/effects";
 import { openAudioFile } from "@/app/actions/audio";
 import { raiseError } from "@/app/actions/error";
 import { showModal } from "@/app/actions/modals";
@@ -20,6 +16,10 @@ import {
 	renderBackend,
 	renderer,
 } from "@/app/global";
+// @ts-nocheck
+import Plugin from "@/lib/core/Plugin";
+import * as displays from "@/lib/displays";
+import * as effects from "@/lib/effects";
 import create from "zustand";
 
 const initialState = {
@@ -27,6 +27,9 @@ const initialState = {
 	showReactor: false,
 	activeReactorId: null,
 	activeElementId: null,
+	isLeftPanelVisible: true,
+	isBottomPanelVisible: true,
+	isRightPanelVisible: true,
 	isVideoRecording: false,
 };
 
@@ -39,7 +42,6 @@ let appInitialized = false;
 let activeVideoRecorder = null;
 
 const DEFAULT_VIDEO_FPS = 60;
-const DEFAULT_VIDEO_DURATION_SECONDS = 10;
 const RECORDING_TIMESLICE_MS = 250;
 const VIDEO_BITS_PER_SECOND = 8_000_000;
 const VIDEO_MIME_CANDIDATES = [
@@ -67,6 +69,82 @@ function getSupportedVideoMimeType() {
 
 function getExtensionFromMimeType(mimeType) {
 	return mimeType.includes("mp4") ? "mp4" : "webm";
+}
+
+function getVideoRecordingSetup() {
+	if (activeVideoRecorder && activeVideoRecorder.state === "recording") {
+		raiseError("A video recording is already in progress.");
+		return null;
+	}
+
+	if (!player.hasAudio()) {
+		raiseError("Load an audio track before saving video.");
+		return null;
+	}
+
+	if (
+		typeof window === "undefined" ||
+		typeof window.MediaRecorder === "undefined"
+	) {
+		raiseError("Video recording is not supported in this browser.");
+		return null;
+	}
+
+	const canvas = renderBackend.getCanvas?.();
+
+	if (!canvas || typeof canvas.captureStream !== "function") {
+		raiseError("Failed to access the stage canvas for video recording.");
+		return null;
+	}
+
+	const mimeType = getSupportedVideoMimeType();
+
+	if (!mimeType) {
+		raiseError("No supported video format found for recording.");
+		return null;
+	}
+
+	const totalDuration = player.getDuration();
+
+	if (!Number.isFinite(totalDuration) || totalDuration <= 0) {
+		raiseError("Failed to determine audio duration for video recording.");
+		return null;
+	}
+
+	return {
+		canvas,
+		mimeType,
+		totalDuration,
+		extension: getExtensionFromMimeType(mimeType),
+	};
+}
+
+export async function chooseVideoSaveLocation(
+	preferredPath,
+	extension = "webm",
+) {
+	const defaultPath = preferredPath || `video-${Date.now()}.${extension}`;
+	const filters = [{ name: extension.toUpperCase(), extensions: [extension] }];
+	const { fileHandle, filePath, canceled } = await api.showSaveDialog({
+		defaultPath,
+		filters,
+	});
+
+	if (canceled) {
+		return {
+			canceled: true,
+			defaultPath,
+			extension,
+		};
+	}
+
+	return {
+		canceled: false,
+		fileHandle,
+		filePath: filePath || fileHandle?.name || defaultPath,
+		defaultPath,
+		extension,
+	};
 }
 
 export async function saveImage() {
@@ -103,78 +181,95 @@ export async function saveImage() {
 }
 
 export async function saveVideo() {
-	if (activeVideoRecorder && activeVideoRecorder.state === "recording") {
-		raiseError("A video recording is already in progress.");
+	const setup = getVideoRecordingSetup();
+
+	if (!setup) {
 		return;
 	}
 
-	if (!player.hasAudio()) {
-		raiseError("Load an audio track before saving video.");
+	const selection = await chooseVideoSaveLocation(undefined, setup.extension);
+
+	if (selection.canceled) {
 		return;
 	}
 
-	if (typeof window === "undefined" || typeof window.MediaRecorder === "undefined") {
-		raiseError("Video recording is not supported in this browser.");
-		return;
+	showModal(
+		"SaveVideoDialog",
+		{ title: "Save video" },
+		{
+			fileHandle: selection.fileHandle,
+			filePath: selection.filePath,
+			defaultPath: selection.defaultPath,
+			extension: selection.extension,
+			totalDuration: setup.totalDuration,
+			startTime: 0,
+			endTime: setup.totalDuration,
+			includeAudio: true,
+		},
+	);
+}
+
+export async function startVideoRecording({
+	fileHandle,
+	filePath,
+	defaultPath,
+	startTime = 0,
+	endTime,
+	includeAudio = true,
+}) {
+	const setup = getVideoRecordingSetup();
+
+	if (!setup) {
+		return false;
 	}
 
-	const canvas = renderBackend.getCanvas?.();
+	const clampedStartTime = Math.max(0, startTime);
+	const clampedEndTime = Math.min(
+		setup.totalDuration,
+		endTime ?? setup.totalDuration,
+	);
 
-	if (!canvas || typeof canvas.captureStream !== "function") {
-		raiseError("Failed to access the stage canvas for video recording.");
-		return;
+	if (clampedEndTime <= clampedStartTime) {
+		raiseError("Video end time must be later than the start time.");
+		return false;
 	}
 
-	const mimeType = getSupportedVideoMimeType();
-
-	if (!mimeType) {
-		raiseError("No supported video format found for recording.");
-		return;
-	}
-
-	let durationMs = DEFAULT_VIDEO_DURATION_SECONDS * 1000;
-	const totalDuration = player.getDuration();
-
-	if (!Number.isFinite(totalDuration) || totalDuration <= 0) {
-		raiseError("Failed to determine audio duration for video recording.");
-		return;
-	}
-
-	durationMs = Math.max(250, Math.round(totalDuration * 1000));
-
-	const extension = getExtensionFromMimeType(mimeType);
-	const defaultPath = `video-${Date.now()}.${extension}`;
-	const { fileHandle, filePath, canceled } = await api.showSaveDialog({
-		defaultPath,
-		filters: [{ name: extension.toUpperCase(), extensions: [extension] }],
-	});
-
-	if (canceled) {
-		return;
-	}
+	const durationMs = Math.max(
+		250,
+		Math.round((clampedEndTime - clampedStartTime) * 1000),
+	);
+	const targetPath =
+		filePath ||
+		fileHandle?.name ||
+		defaultPath ||
+		`video-${Date.now()}.${setup.extension}`;
+	const previousLoop = player.isLooping();
+	let audioDestination = null;
+	let recordingStream = null;
 
 	try {
 		if (audioContext.state === "suspended") {
 			await audioContext.resume();
 		}
 
-		const canvasStream = canvas.captureStream(DEFAULT_VIDEO_FPS);
+		const canvasStream = setup.canvas.captureStream(DEFAULT_VIDEO_FPS);
 		const tracks = [...canvasStream.getVideoTracks()];
 
-		let audioDestination = null;
-		audioDestination = audioContext.createMediaStreamDestination();
-		player.volume.connect(audioDestination);
-		tracks.push(...audioDestination.stream.getAudioTracks());
+		if (includeAudio) {
+			audioDestination = audioContext.createMediaStreamDestination();
+			player.volume.connect(audioDestination);
+			tracks.push(...audioDestination.stream.getAudioTracks());
+		}
 
-		const recordingStream = new MediaStream(tracks);
+		recordingStream = new MediaStream(tracks);
 		const recorder = new window.MediaRecorder(recordingStream, {
-			mimeType,
+			mimeType: setup.mimeType,
 			videoBitsPerSecond: VIDEO_BITS_PER_SECOND,
 		});
 
 		activeVideoRecorder = recorder;
 		const chunks = [];
-		const fileName = filePath || fileHandle?.name || defaultPath;
+		const fileName = targetPath;
 		let stopTimer = null;
 		let recordingFailed = false;
 
@@ -191,6 +286,7 @@ export async function saveVideo() {
 			}
 
 			player.off("stop", onPlayerStop);
+			player.setLoop(previousLoop);
 
 			if (audioDestination) {
 				try {
@@ -200,7 +296,14 @@ export async function saveVideo() {
 				}
 			}
 
-			recordingStream.getTracks().forEach((track) => track.stop());
+			for (const track of recordingStream.getTracks()) {
+				track.stop();
+			}
+
+			if (player.isPlaying()) {
+				player.stop();
+			}
+
 			activeVideoRecorder = null;
 			appStore.setState({ isVideoRecording: false });
 		};
@@ -224,10 +327,10 @@ export async function saveVideo() {
 			}
 
 			try {
-				const blob = new Blob(chunks, { type: mimeType });
+				const blob = new Blob(chunks, { type: setup.mimeType });
 
 				await api.saveVideoFile(fileHandle || fileName, blob, {
-					mimeType,
+					mimeType: setup.mimeType,
 					fileName,
 				});
 
@@ -240,7 +343,8 @@ export async function saveVideo() {
 		};
 
 		player.stop();
-		player.seek(0);
+		player.setLoop(false);
+		player.seek(clampedStartTime / setup.totalDuration);
 		player.on("stop", onPlayerStop);
 
 		recorder.start(RECORDING_TIMESLICE_MS);
@@ -248,14 +352,30 @@ export async function saveVideo() {
 		player.play();
 
 		stopTimer = window.setTimeout(() => {
-			if (recorder.state === "recording") {
-				recorder.stop();
-			}
+			player.stop();
 		}, durationMs);
+		return true;
 	} catch (error) {
+		player.setLoop(previousLoop);
+
+		if (audioDestination) {
+			try {
+				player.volume.disconnect(audioDestination);
+			} catch (_error) {
+				// Ignore disconnect errors from stale nodes.
+			}
+		}
+
+		if (recordingStream) {
+			for (const track of recordingStream.getTracks()) {
+				track.stop();
+			}
+		}
+
 		activeVideoRecorder = null;
 		appStore.setState({ isVideoRecording: false });
 		raiseError("Failed to start video recording.", error);
+		return false;
 	}
 }
 
@@ -265,6 +385,24 @@ export function setActiveReactorId(reactorId) {
 
 export function setActiveElementId(elementId) {
 	appStore.setState({ activeElementId: elementId || null });
+}
+
+export function toggleLeftPanelVisibility() {
+	appStore.setState((state) => ({
+		isLeftPanelVisible: !state.isLeftPanelVisible,
+	}));
+}
+
+export function toggleBottomPanelVisibility() {
+	appStore.setState((state) => ({
+		isBottomPanelVisible: !state.isBottomPanelVisible,
+	}));
+}
+
+export function toggleRightPanelVisibility() {
+	appStore.setState((state) => ({
+		isRightPanelVisible: !state.isRightPanelVisible,
+	}));
 }
 
 export async function handleMenuAction(action) {

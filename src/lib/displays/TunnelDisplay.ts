@@ -19,7 +19,8 @@ export default class TunnelDisplay extends Display {
 			bank: 8,
 			gridColumns: 28,
 			gridRows: 48,
-			lineWidth: 0.08,
+			lineWidth: 0.05,
+			transparentSurface: false,
 			radialSegments: 40,
 			lengthSegments: 128,
 		},
@@ -31,6 +32,10 @@ export default class TunnelDisplay extends Display {
 			backgroundColor: {
 				label: "Background",
 				type: "color",
+			},
+			transparentSurface: {
+				label: "Transparent",
+				type: "toggle",
 			},
 			radius: {
 				label: "Radius",

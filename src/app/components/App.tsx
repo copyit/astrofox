@@ -1,4 +1,4 @@
-import { initApp } from "@/app/actions/app";
+import useAppStore, { initApp } from "@/app/actions/app";
 import Toolbar from "@/app/components/nav/Toolbar";
 import LeftPanel from "@/app/components/panels/LeftPanel";
 import ReactorPanel from "@/app/components/panels/ReactorPanel";
@@ -13,6 +13,12 @@ import { ignoreEvents } from "@/lib/utils/react";
 import React, { useEffect } from "react";
 
 function App() {
+	const isLeftPanelVisible = useAppStore((state) => state.isLeftPanelVisible);
+	const isBottomPanelVisible = useAppStore(
+		(state) => state.isBottomPanelVisible,
+	);
+	const isRightPanelVisible = useAppStore((state) => state.isRightPanelVisible);
+
 	useEffect(() => {
 		initApp();
 	}, []);
@@ -26,17 +32,21 @@ function App() {
 			<Preload />
 			<TitleBar />
 			<div className="flex flex-row flex-1 overflow-hidden relative">
-				<LeftPanel />
+				{isLeftPanelVisible ? <LeftPanel /> : null}
 				<div
 					id="viewport"
 					className="flex flex-col flex-1 overflow-hidden relative"
 				>
 					<Toolbar />
 					<Stage />
-					<ReactorPanel />
-					<Player />
+					{isBottomPanelVisible ? (
+						<>
+							<ReactorPanel />
+							<Player />
+						</>
+					) : null}
 				</div>
-				<RightPanel />
+				{isRightPanelVisible ? <RightPanel /> : null}
 			</div>
 			<StatusBar />
 			<Modals />
