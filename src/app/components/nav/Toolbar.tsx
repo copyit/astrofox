@@ -48,14 +48,7 @@ const DISPLAY_CATEGORIES = [
 const EFFECT_CATEGORIES = [
 	{
 		label: "Color",
-		effects: [
-			"Brightness / Contrast",
-			"Color Average",
-			"Color Depth",
-			"Hue / Saturation",
-			"Sepia",
-			"Tone Mapping",
-		],
+		effects: ["Color"],
 	},
 	{
 		label: "Blur & Focus",

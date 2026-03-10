@@ -138,6 +138,27 @@ export function SceneWithEffects({
 	React.useEffect(() => {
 		const builtPasses = [];
 		const rawEffects = [];
+		const addEffectItem = (item) => {
+			if (!item) {
+				return;
+			}
+
+			if (Array.isArray(item)) {
+				for (const child of item) {
+					addEffectItem(child);
+				}
+				return;
+			}
+
+			if (item instanceof RawPass && !(item instanceof RawEffect)) {
+				builtPasses.push(item);
+				return;
+			}
+
+			if (item instanceof RawEffect) {
+				rawEffects.push(item);
+			}
+		};
 
 		for (const effect of effects) {
 			let item = null;
@@ -163,14 +184,7 @@ export function SceneWithEffects({
 				continue;
 			}
 
-			if (item instanceof RawPass && !(item instanceof RawEffect)) {
-				builtPasses.push(item);
-				continue;
-			}
-
-			if (item instanceof RawEffect) {
-				rawEffects.push(item);
-			}
+			addEffectItem(item);
 		}
 
 		// CONVOLUTION effects cannot be merged into a single EffectPass — each
