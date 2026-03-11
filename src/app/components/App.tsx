@@ -1,5 +1,4 @@
 import useAppStore, { initApp } from "@/app/actions/app";
-import Toolbar from "@/app/components/nav/Toolbar";
 import LeftPanel from "@/app/components/panels/LeftPanel";
 import ReactorPanel from "@/app/components/panels/ReactorPanel";
 import RightPanel from "@/app/components/panels/RightPanel";
@@ -123,7 +122,6 @@ function App() {
 					id="viewport"
 					className="flex flex-col flex-1 overflow-hidden relative"
 				>
-					<Toolbar />
 					<Stage />
 					<div
 						aria-hidden={!isBottomPanelVisible}

@@ -1,3 +1,6 @@
+import Add2DDisplaysMenu from "@/app/components/panels/Add2DDisplaysMenu";
+import Add3DDisplaysMenu from "@/app/components/panels/Add3DDisplaysMenu";
+import AddEffectsMenu from "@/app/components/panels/AddEffectsMenu";
 import Layer from "@/app/components/panels/Layer";
 import { Cube, Picture, Square, Sun } from "@/app/icons";
 import { reverse } from "@/lib/utils/array";
@@ -119,47 +122,19 @@ export default function SceneLayer({
 	const renderSection = (
 		title: string,
 		layers: SceneElement[],
-		emptyLabel: string,
 		sectionType: "effect" | "display",
+		addMenu: React.ReactNode,
 		sectionRenderGroup: "2d" | "3d" | null = null,
 	) => (
 		<div className="flex flex-col gap-0.5">
 			<div className="ml-4 px-2 pt-1.5 pb-0.5 text-[10px] font-medium tracking-[0.18em] uppercase text-neutral-500">
 				{title}
 			</div>
-			{layers.length > 0 ? (
-				layers.map((layer: SceneElement) => renderLayer(layer))
-			) : (
-				<div
-					className="ml-4 rounded border border-dashed border-neutral-700/80 px-2 py-1 text-xs text-neutral-600"
-					onDragOver={(e) => {
-						if (
-							dragSourceType !== sectionType ||
-							(sectionRenderGroup &&
-								dragSourceRenderGroup !== sectionRenderGroup)
-						) {
-							return;
-						}
-
-						onLayerDragOver?.(scene.id, e);
-					}}
-					onDrop={(e) => {
-						if (
-							dragSourceType !== sectionType ||
-							(sectionRenderGroup &&
-								dragSourceRenderGroup !== sectionRenderGroup)
-						) {
-							return;
-						}
-
-						onLayerDrop?.(scene.id, e);
-					}}
-				>
-					{emptyLabel}
-				</div>
-			)}
+			{layers.length > 0
+				? layers.map((layer: SceneElement) => renderLayer(layer))
+				: null}
 			<div
-				className="h-2 ml-4"
+				className="ml-4 flex justify-center py-2"
 				onDragOver={(e) => {
 					if (
 						dragSourceType !== sectionType ||
@@ -180,7 +155,9 @@ export default function SceneLayer({
 
 					onLayerDrop?.(scene.id, e);
 				}}
-			/>
+			>
+				{addMenu}
+			</div>
 		</div>
 	);
 
@@ -224,20 +201,25 @@ export default function SceneLayer({
 				className="rounded"
 			/>
 			<div className={classNames("flex flex-col gap-1")}>
-				{renderSection("Effects", effects, "Drop effects here", "effect")}
 				{renderSection(
-					"3D Displays",
-					displays3D,
-					"Drop 3D displays here",
-					"display",
-					"3d",
+					"Effects",
+					effects,
+					"effect",
+					<AddEffectsMenu sceneId={id} />,
 				)}
 				{renderSection(
 					"2D Displays",
 					displays2D,
-					"Drop 2D displays here",
 					"display",
+					<Add2DDisplaysMenu sceneId={id} />,
 					"2d",
+				)}
+				{renderSection(
+					"3D Displays",
+					displays3D,
+					"display",
+					<Add3DDisplaysMenu sceneId={id} />,
+					"3d",
 				)}
 			</div>
 		</div>
