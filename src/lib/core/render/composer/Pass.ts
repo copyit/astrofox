@@ -1,69 +1,79 @@
 // @ts-nocheck
-import { Color, Mesh, OrthographicCamera, Scene } from "three";
-import { getFullscreenGeometry } from "./common";
+import { Color, Mesh, OrthographicCamera, Scene } from 'three';
+import { getFullscreenGeometry } from './common';
 
 export default class Pass {
-	constructor() {
-		this.enabled = true;
-		this.needsSwap = false;
-		this.clearColor = false;
-		this.clearDepth = false;
-		this.clearStencil = false;
-		this.renderToScreen = false;
-		this.setClearColor = null;
-		this.setClearAlpha = 1.0;
-	}
+  // Declared so TypeScript consumers of the (untyped) pass classes see the
+  // shared fields; values are assigned in the constructor.
+  declare enabled: boolean;
+  declare needsSwap: boolean;
+  declare clearColor: boolean;
+  declare clearDepth: boolean;
+  declare clearStencil: boolean;
+  declare renderToScreen: boolean;
+  declare setClearColor: unknown;
+  declare setClearAlpha: number;
+  declare scene: Scene;
+  declare camera: OrthographicCamera;
+  declare geometry: unknown;
+  declare material: unknown;
+  declare mesh: Mesh;
 
-	setFullscreen(material, geometry, camera) {
-		this.scene = new Scene();
-		this.camera = camera || new OrthographicCamera(-1, 1, 1, -1, 0, 1);
-		this.geometry = geometry || getFullscreenGeometry();
-		this.material = material;
+  constructor() {
+    this.enabled = true;
+    this.needsSwap = false;
+    this.clearColor = false;
+    this.clearDepth = false;
+    this.clearStencil = false;
+    this.renderToScreen = false;
+    this.setClearColor = null;
+    this.setClearAlpha = 1.0;
+  }
 
-		this.mesh = new Mesh(this.geometry, this.material);
-		this.mesh.frustumCulled = false;
+  setFullscreen(material, geometry, camera) {
+    this.scene = new Scene();
+    this.camera = camera || new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.geometry = geometry || getFullscreenGeometry();
+    this.material = material;
 
-		this.scene.add(this.mesh);
-	}
+    this.mesh = new Mesh(this.geometry, this.material);
+    this.mesh.frustumCulled = false;
 
-	dispose() {
-		this.material?.dispose?.();
-	}
+    this.scene.add(this.mesh);
+  }
 
-	update(properties = {}) {
-		for (const [key, value] of Object.entries(properties)) {
-			this[key] = value;
-		}
-	}
+  dispose() {
+    this.material?.dispose?.();
+  }
 
-	render(renderer, scene, camera, renderTarget) {
-		const {
-			clearColor,
-			clearDepth,
-			clearStencil,
-			setClearColor,
-			setClearAlpha,
-			renderToScreen,
-		} = this;
+  update(properties = {}) {
+    for (const [key, value] of Object.entries(properties)) {
+      this[key] = value;
+    }
+  }
 
-		const oldColor = new Color();
-		const oldAlpha = renderer.getClearAlpha();
+  render(renderer, scene, camera, renderTarget) {
+    const { clearColor, clearDepth, clearStencil, setClearColor, setClearAlpha, renderToScreen } =
+      this;
 
-		if (setClearColor) {
-			renderer.getClearColor(oldColor);
-			renderer.setClearColor(setClearColor, setClearAlpha);
-		}
+    const oldColor = new Color();
+    const oldAlpha = renderer.getClearAlpha();
 
-		renderer.setRenderTarget(renderToScreen ? null : renderTarget);
+    if (setClearColor) {
+      renderer.getClearColor(oldColor);
+      renderer.setClearColor(setClearColor, setClearAlpha);
+    }
 
-		if (clearColor || clearDepth || clearStencil) {
-			renderer.clear(clearColor, clearDepth, clearStencil);
-		}
+    renderer.setRenderTarget(renderToScreen ? null : renderTarget);
 
-		renderer.render(scene, camera);
+    if (clearColor || clearDepth || clearStencil) {
+      renderer.clear(clearColor, clearDepth, clearStencil);
+    }
 
-		if (setClearColor) {
-			renderer.setClearColor(oldColor, oldAlpha);
-		}
-	}
+    renderer.render(scene, camera);
+
+    if (setClearColor) {
+      renderer.setClearColor(oldColor, oldAlpha);
+    }
+  }
 }
